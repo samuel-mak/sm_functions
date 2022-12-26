@@ -1,0 +1,126 @@
+---
+title: "sm_functions"
+author: "Samuel Mak"
+date: '2022-12-26'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+sm_rowcol  <- 
+  function(data, FUN = sum, which_cols = c(), which_rows = c(), digits = c(), where = "both", label = c("Col Result", "Row Result")){
+  #Input
+  where <- where
+  dat <- data
+  if(is.null(which_cols)){
+    which_cols <- names(dat)
+  } 
+  if(is.null(which_rows)){
+    which_rows <- 1:nrow(dat)
+  }
+ #cols <- c("Sepal.Length", "Sepal.Width")
+  if(!where %in% c("col", "cols", "Col", "Cols","column", "columns", "c", "C", "row", "rows", "Row", "Rows", "r", "R", "both", "Both", 'b', 'B') ){stop("input for the where argument can only be 'col', 'cols', 'Col', 'Cols','column', 'columns', 'c', 'C', 'row', 'rows', 'Row', 'Rows', 'r', 'R', 'both', 'Both', 'b', 'B'")}
+  if(length(dat[,duplicated(names(dat))]) > 1){stop("There cannot be duplicates in column names")}
+
+  
+  if(length(which_cols) == 1){
+  dat_if_cols_length_is_1 <- data.frame(x = dat[, which_cols] )
+  names(dat_if_cols_length_is_1) <- which_cols
+  dat_2 <- data.frame(x  = dat_if_cols_length_is_1[, unlist(lapply(dat_if_cols_length_is_1, is.numeric), use.names = FALSE)])
+  names(dat_2) <- which_cols
+  } else if(length(which_cols) != 1){
+    dat_2 <- dat[, which_cols][, unlist(lapply(dat[, which_cols], is.numeric), use.names = FALSE)]
+  }
+  
+
+  #Check if the columns/rows are numeric otherwise delete them and notify the user that that col is not numeric and is deleted
+  
+  #Warning message
+  cols_not_numeric <- names(dat[, which_cols][!names(dat[, which_cols]) %in% names(dat_2)])
+  col_not_numeric_warning_head <- 
+    if(length(cols_not_numeric) == 1){"WARNING: The following column is not numeric and is ignored"} else if(length(cols_not_numeric) > 1){"The following columns are not numeric and are ignored"}
+  cols_not_numeric_df <- cols_not_numeric |> as.data.frame()
+  names(cols_not_numeric_df) <- col_not_numeric_warning_head
+  
+  
+  #Col function
+  col_function <- function(original_dat, adjusted_dat, label, FUN){
+    #adjusted_dat <- dat_2
+    #original_dat <- iris
+   
+    results_df <- data.frame(col = c(), result = c())
+    # Col name
+
+    for(i in if(length(adjusted_dat) == 1){1} else if(length(adjusted_dat) != 1){1:length(adjusted_dat)}){
+      results_df[i, 1] <- names(adjusted_dat)[i]
+      results_df[i, 2] <- FUN(adjusted_dat[[i]])
+      }
+    
+    results_df_2 <- data.frame(t(results_df))
+    
+    if(length(which_cols) == 1){
+      results_df_2 <- data.frame(as.numeric(results_df_2[-1, ]))
+      names(results_df_2) <- which_cols
+    } else if(length(which_cols) != 1){
+      names(results_df_2) <- results_df_2[1,]
+      results_df_2 <- results_df_2[-1, ]
+      results_df_2 <- data.frame(lapply(results_df_2, as.numeric))
+    }
+    
+    
+    #Add a column in if the first column is numeric 
+    if(is.numeric(original_dat[,1])){
+      total_col <- data.frame(total_col = rep("", nrow(original_dat)))
+      original_dat <- cbind(total_col, original_dat)
+      names(original_dat)[1] <- label[1]
+    } 
+    
+    #Adjustig the label
+    original_dat[nrow(original_dat) + 1, 1]  <- label[1]
+    
+    #Adding the results to the orignal dataframe
+    for(i in if(length(adjusted_dat) == 1){1} else if(length(adjusted_dat) != 1){1:length(adjusted_dat)}){
+      original_dat[nrow(original_dat) , which(names(original_dat) == names(results_df_2)[i])] <- if(is.null(digits)){results_df_2[[i]]} else
+        if(!is.null(digits)){round(results_df_2[[i]], digits = digits)}
+      }
+    return(original_dat)
+  }
+
+  # Row function
+  row_function <- function(original_dat, adjusted_dat, label, FUN){
+  
+    #original_dat <- final_df
+    #adjusted_dat <- dat_2
+    adjusted_dat <- data.frame(t(adjusted_dat))
+    results_df <- data.frame(row_result = unlist(lapply(adjusted_dat, FUN = FUN)))
+    results_vector <- unlist(lapply(adjusted_dat, FUN = FUN))
+    logic <- 1:length(results_vector) %in% which_rows
+    results_vector[which(logic == "FALSE")] <- NA
+    results_df <- data.frame(row_result = results_vector)
+    if(where %in% c("both", "Both", "B", "b")){results_df[nrow(results_df) + 1,] <- NA}
+    
+    #Adding the result to the orignal dataframe and adjusting the label name
+    original_dat[,length(original_dat)+1] <- results_df
+    names(original_dat)[length(original_dat)]  <- label
+    return(original_dat)
+    }
+
+  if(where %in% c("col", "cols", "Col", "Cols","column", "columns", "c", "C")){
+    final_df <- col_function(original_dat = dat, adjusted_dat = dat_2, label = label[1], FUN = FUN)
+    } else
+  if(where %in% c("row", "rows", "Row", "Rows", "r", "R")){
+    final_df <- row_function(original_dat = dat, adjusted_dat = dat_2, label = label[2], FUN = FUN)
+    } else
+  if(where %in% c("Both", "both", "b", "B")){
+    final_df <- col_function(original_dat = dat, adjusted_dat = dat_2, FUN = FUN, label = label[1])
+    final_df <- row_function(original_dat = final_df, adjusted_dat = dat_2, FUN = FUN, label = label[2])                     
+    }
+  output <- list(cols_not_numeric_df, output = final_df)
+  return(output)
+}
+
+```
+
