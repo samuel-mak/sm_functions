@@ -131,6 +131,123 @@ library(rvest)
 
 
 
+```{r pressure, echo=FALSE}
+
+
+gias_mat <- function(uid){
+  
+  
+library(rvest)
+library(tidyverse)
+  
+output_df <- 
+  data.frame(
+    mat = c(),
+    mat_uid = c(),
+    academy_name = c(),
+    address = c(),
+    phase_type = c(),
+    urn = c(),
+    ukprn = c(),
+    laestab = c(),
+    la = c(),
+    status = c(),
+    joined_date_as_character = c()
+    ) 
+  
+for(i in 1:length(uid)){
+
+  
+  html <- read_html(paste0("https://www.get-information-schools.service.gov.uk/Groups/Group/Details/", uid[i],"#list")) 
+
+mat_name <- 
+  html |> 
+  html_elements("span") |> 
+  html_nodes(xpath = '//*[@id="establishment-group-name"]')  |> 
+  html_text2()
+
+mat_uid <- 
+  html |> 
+  html_elements("span") |> 
+  html_nodes(xpath = '//*[@id="uid-value"]')  |> 
+  html_text2()
+
+academy_list <- 
+  html |> 
+  html_nodes("ul.school-results-listing") |> 
+  html_elements("li") 
+
+academy_name <- academy_list |> html_elements("h2") |> html_text2()
+status <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-status-value"]')  |> html_text2()
+joined_date <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-joined-date-value"]')  |> html_text2()
+urn <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-urn-value"]')  |> html_text2()
+address <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-address-value"]')  |> html_text2()
+phase_type <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-phase-type-value"]')  |> html_text2()
+ukprn <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-ukprn-value"]')  |> html_text2()
+laestab <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-laestab-value"]')  |> html_text2()
+la <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-la-value"]')  |> html_text2()
+
+object_list = list(
+  mat = mat_name,
+    mat_uid = mat_uid,
+    academy_name = academy_name,
+    address = address,
+    phase_type = phase_type,
+    urn = urn,
+    ukprn = ukprn, 
+    laestab = laestab, 
+    la = la,
+    status = status, 
+    joined_date_as_character = joined_date)
+
+for(k in 1:length(object_list)){
+  #k <- 1
+  if(length(object_list[[k]]) == 0){
+    object_list[[k]] <- NA
+  }
+}
+
+# MAT name and id 
+
+looping_df <- 
+  data.frame(
+    mat = mat_name,
+    mat_uid = mat_uid,
+    academy_name = object_list$academy_name,
+    address = object_list$address,
+    phase_type = object_list$phase_type,
+    urn = object_list$urn,
+    ukprn = object_list$ukprn, 
+    laestab = object_list$laestab, 
+    la = object_list$la,
+    status = object_list$status, 
+    joined_date_as_character = object_list$joined_date
+    ) 
+
+output_df <- rbind(output_df, looping_df)
+
+}
+output_df <- 
+  output_df |> 
+  mutate(
+    academy_name = trimws(gsub("\r", "", academy_name)),
+    phase_type = trimws(gsub("\r", "", phase_type)),
+    phase = trimws(gsub(",.*", "", phase_type)),
+    type = trimws(gsub(".*,", "", phase_type)),
+    joined_date_as_date = as.Date(joined_date_as_character, tryFormats = "%d %B %Y")
+  )  |> 
+  select(
+    mat, mat_uid, academy_name, address, phase, type, urn, ukprn, laestab, status, la, joined_date_as_character, joined_date_as_date
+  )
+
+return(output_df)
+
+}
+
+gias_mat(uid = c(3320, 4474,4320, 1383, 5547))
+```
+
+
 
 
 
