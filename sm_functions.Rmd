@@ -132,10 +132,12 @@ sm_rowcol  <-
 
 gias_mat <- function(uid){
   
-  
-library(rvest)
-library(tidyverse)
-  
+#Check package 
+if(length(setdiff(c("tidyverse", "rvest"), rownames(installed.packages())) ) > 0){
+  install.packages(c("tidyverse", "rvest"))
+}
+
+
 output_df <- 
   data.frame(
     mat = c(),
@@ -153,38 +155,47 @@ output_df <-
   
 for(i in 1:length(uid)){
 
+  html <- rvest::read_html(paste0("https://www.get-information-schools.service.gov.uk/Groups/Group/Details/", uid[i],"#list")) 
   
-  html <- read_html(paste0("https://www.get-information-schools.service.gov.uk/Groups/Group/Details/", uid[i],"#list")) 
+  mat_name <- 
+    html |> 
+    rvest::html_elements("span") |> 
+    rvest::html_nodes(xpath = '//*[@id="establishment-group-name"]')  |> 
+    rvest::html_text2()
+  
+  mat_uid <- 
+    html |> 
+    rvest::html_elements("span") |> 
+    rvest::html_nodes(xpath = '//*[@id="uid-value"]')  |> 
+    rvest::html_text2()
 
-mat_name <- 
-  html |> 
-  html_elements("span") |> 
-  html_nodes(xpath = '//*[@id="establishment-group-name"]')  |> 
-  html_text2()
+  academy_list <- 
+    html |> 
+    rvest::html_nodes("ul.school-results-listing") |> 
+    rvest::html_elements("li") 
 
-mat_uid <- 
-  html |> 
-  html_elements("span") |> 
-  html_nodes(xpath = '//*[@id="uid-value"]')  |> 
-  html_text2()
+  academy_name <- academy_list |> rvest::html_elements("h2") |> rvest::html_text2()
 
-academy_list <- 
-  html |> 
-  html_nodes("ul.school-results-listing") |> 
-  html_elements("li") 
+  academy_list_dl <- academy_list |> rvest::html_elements("dl")
+  
+  status <- academy_list_dl  |> rvest::html_nodes(xpath = '//*[@id="establishment-status-value"]')  |> rvest::html_text2() 
+  
+  joined_date <- academy_list_dl |> rvest::html_nodes(xpath = '//*[@id="establishment-joined-date-value"]')  |> rvest::html_text2()
+  
+  urn <- academy_list_dl  |> rvest::html_nodes(xpath = '//*[@id="establishment-urn-value"]')  |> rvest::html_text2()
+  
+  address <- academy_list_dl  |> rvest::html_nodes(xpath = '//*[@id="establishment-address-value"]')  |> rvest::html_text2()
+  
+  phase_type <- academy_list_dl  |> rvest::html_nodes(xpath = '//*[@id="establishment-phase-type-value"]')  |> rvest::html_text2()
+  
+  ukprn <- academy_list_dl  |> rvest::html_nodes(xpath = '//*[@id="establishment-ukprn-value"]')  |> rvest::html_text2()
+  
+  laestab <- academy_list_dl  |> rvest::html_nodes(xpath = '//*[@id="establishment-laestab-value"]')  |> rvest::html_text2()
+  
+  la <- academy_list_dl |> rvest::html_nodes(xpath = '//*[@id="establishment-la-value"]')  |> rvest::html_text2()
 
-academy_name <- academy_list |> html_elements("h2") |> html_text2()
-status <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-status-value"]')  |> html_text2()
-joined_date <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-joined-date-value"]')  |> html_text2()
-urn <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-urn-value"]')  |> html_text2()
-address <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-address-value"]')  |> html_text2()
-phase_type <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-phase-type-value"]')  |> html_text2()
-ukprn <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-ukprn-value"]')  |> html_text2()
-laestab <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-laestab-value"]')  |> html_text2()
-la <- academy_list |> html_elements("dl") |> html_nodes(xpath = '//*[@id="establishment-la-value"]')  |> html_text2()
-
-object_list = list(
-  mat = mat_name,
+  object_list <-  list(
+    mat_name = mat_name,
     mat_uid = mat_uid,
     academy_name = academy_name,
     address = address,
@@ -194,57 +205,176 @@ object_list = list(
     laestab = laestab, 
     la = la,
     status = status, 
-    joined_date_as_character = joined_date)
-
-for(k in 1:length(object_list)){
+    joined_date_as_character = joined_date
+    )
+  
+  for(k in 1:length(object_list)){
   #k <- 1
-  if(length(object_list[[k]]) == 0){
-    object_list[[k]] <- NA
+    if(length(object_list[[k]]) == 0){
+      object_list[[k]] <- NA
+    }
   }
-}
+ 
 
-# MAT name and id 
+  looping_df <- 
+    data.frame(
+      mat = object_list$mat_name,
+      mat_uid = object_list$mat_uid,
+      academy_name = object_list$academy_name,
+      address = object_list$address,
+      phase_type = object_list$phase_type,
+      urn = object_list$urn,
+      ukprn = object_list$ukprn, 
+      laestab = object_list$laestab, 
+      la = object_list$la,
+      status = object_list$status, 
+      joined_date_as_character = object_list$joined_date
+      ) 
 
-looping_df <- 
-  data.frame(
-    mat = mat_name,
-    mat_uid = mat_uid,
-    academy_name = object_list$academy_name,
-    address = object_list$address,
-    phase_type = object_list$phase_type,
-    urn = object_list$urn,
-    ukprn = object_list$ukprn, 
-    laestab = object_list$laestab, 
-    la = object_list$la,
-    status = object_list$status, 
-    joined_date_as_character = object_list$joined_date
-    ) 
-
-output_df <- rbind(output_df, looping_df)
+  output_df <- rbind(output_df, looping_df)
 
 }
+
 output_df <- 
   output_df |> 
-  mutate(
+  dplyr::mutate(
     academy_name = trimws(gsub("\r", "", academy_name)),
     phase_type = trimws(gsub("\r", "", phase_type)),
     phase = trimws(gsub(",.*", "", phase_type)),
     type = trimws(gsub(".*,", "", phase_type)),
     joined_date_as_date = as.Date(joined_date_as_character, tryFormats = "%d %B %Y")
   )  |> 
-  select(
-    mat, mat_uid, academy_name, address, phase, type, urn, ukprn, laestab, status, la, joined_date_as_character, joined_date_as_date
-  )
+  dplyr::select(mat, mat_uid, academy_name, address, phase, type, urn, ukprn, laestab, status, la, joined_date_as_character, joined_date_as_date)
 
 return(output_df)
 
 }
 
-gias_mat(uid = c(3320, 4474,4320, 1383, 5547))
+gias_mat(uid = c(3320, 4474,4320, 1383, 5547, 	2748, 2894))
+s <- Sys.time()
+gias_mat(uid = 4474)
+e <- Sys.time()
+e-s
+c(
+7.094354,
+11.2063 ,
+16.30495,
+22.13463,
+ 27.75341,
+ 32.41989, 
+38.09229,
+42.35471,
+47.03511,53.18831, 58.6897, 60.095808)
+
+#12 DELTA per minute
+```
+```{r}
+
+  system.file(package = "adimpro")
+
+package_path <- find.package(package = c("tidyverse", "adimpro"), quiet = T)
+
+
+rownames(installed.packages())
+c("tidyverse", "adimpro", "betaclust")
+
+
+
+
+
+```
+
+```{r}
+start_1 <- Sys.time()
+install.packages(setdiff(c("tidyverse", "rvest"), rownames(installed.packages())))
+end_1 <-Sys.time()
+
+end_1 - start_1
+
+1.280232
+0.8182609
+0.8138931
+0.849122
+0.785744
+0.847754
+
+start_2 <- Sys.time()
+if(length(setdiff(c("tidyverse", "rvest"), rownames(installed.packages())) ) > 0){
+  install.packages(c("tidyverse", "rvest"))
+}
+end_2 <-Sys.time()
+
+end_2 - start_2
+
+0.01677084
+0.01274705
+0.01450396
+0.01343679
+0.01346302
 ```
 
 
+```{r}
+#estimating function running time 
 
+
+reach2_list <- list()
+
+for(i in 1:30){
+reach2_list[[i]] <- rep(4474, i)
+}
+
+
+bristol_list <- list()
+
+for(i in 1:16){
+bristol_list[[i]] <- rep(2894, i)
+}
+
+
+reach2_list
+bristol_list
+
+t <- c()
+for(k in 1:length(reach2_list)){
+
+  start <- Sys.time()
+  gias_mat(reach2_list[[k]])
+  end <- Sys.time()
+  
+  t <- c(t, end - start)
+}
+
+t_2 <- c()
+for(k in 1:length(bristol_list)){
+
+  start_2 <- Sys.time()
+  gias_mat(bristol_list[[k]])
+  end_2 <- Sys.time()
+  
+  t_2 <- c(t, end - start)
+}
+
+t
+t_2
+
+data.frame(
+  time = c(t, t_2[1:16]),
+  mat_size = rep(c("big", "small"), each = 16),
+  n_mats = rep(c(1:16), 2)
+) |> 
+  ggplot() +
+  geom_line(
+    mapping = aes(
+      x = n_mats,
+      y = time,
+      colour = mat_size
+    )
+  )
+rep(c("big", "small"), each = 16) |> length()
+
+t |> plot()
+```
 
 
 
